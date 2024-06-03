@@ -10,11 +10,22 @@
 int main(int argc, char const* argv[])
 {
 
-    // Verificamos que el comando de terminal tenga los 3 argumentos necesarios
-    //./ejecutable IP Puerto
-    // Si no se detectan los 3 lo que haremos sera enviar un error
-    if (argc != 3) {
-        fprintf(stderr, "Uso: %s <IP DEL SERVIDOR> <PUERTO>\n", argv[0]);
+    // Verificamos que el comando de terminal tenga los argumentos necesarios
+    // ./ejecutable <usuario>@<ip>:<puerto>
+    if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 'h') {
+        printf("Cliente SSH Demo -- Proyecto Final Arquitectura Cliente-Servidor\n\nUso:\n%s <USUARIO>@<IP_DEL_SERVIDOR>:<PUERTO>\n\nDONDE: <USUARIO> es el nombre de usuario del servidor SSH.\n<IP_DEL_SERVIDOR> es la dirección IP del servidor SSH.\n<PUERTO> es el puerto en el que escucha el servidor SSH.\nPara salir del prompt una vez conectado ingrese 'exit'.\n\n", argv[0]);
+        exit(EXIT_FAILURE);
+    } else if (argc < 2) {
+        printf("ERROR: Parametro faltante. Utiliza -h para ver información de uso.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char client_user[50], server_ip[50];
+    int server_port;
+
+    // Parsear el formato <usuario>@<servidor>:<puerto>
+    if (sscanf(argv[1], "%49[^@]@%49[^:]:%d", client_user, server_ip, &server_port) != 3) {
+        fprintf(stderr, "Formato incorrecto. Uso: %s <usuario>@<IP_DEL_SERVIDOR>:<PUERTO>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -31,13 +42,15 @@ int main(int argc, char const* argv[])
         exit(EXIT_FAILURE);
     }
 
+    // printf("Conectando al usuario %s al servidor %s:%d\n", client_user, server_ip, server_port);
+
     // Configuramos nuestra estrcutura para la info del servidor
     servidor_address.sin_family = AF_INET;
-    servidor_address.sin_port = htons(atoi(argv[2]));
+    servidor_address.sin_port = htons(server_port);
 
     // Convertimos la dirección IP a binario para la conexion
     // En caso de error mandamos mensaje
-    if (inet_pton(AF_INET, argv[1], &servidor_address.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, server_ip, &servidor_address.sin_addr) <= 0) {
         perror("Dirección IP no válida");
         exit(EXIT_FAILURE);
     }
@@ -52,28 +65,39 @@ int main(int argc, char const* argv[])
 
     // Declaramos nuestra variable para almacenar el comando que venga de consola
     char buffer[MAX_BUFFER_SIZE] = { 0 };
-    printf("Ingrese el comando a enviar al servidor: ");
-    // Con fgets vamos a leer una linea de texto desde el teclado
-    // Los parametros son: donde se almacena, tamaño maximo, indicamos que es de teclado
-    fgets(buffer, sizeof(buffer), stdin);
-
-    // Una vez leido el comando lo Enviamos al servidor
-    // En este caso usamos se usa el file descriptor del cliente, el comando, longitud de los datos a enviar
-    // El 0 es para indicar que no hay banderas adicionales
-    send(file_descriptor_servidor, buffer, strlen(buffer), 0);
-
-    // Recibimos la salida del servidor
-    printf("Respuesta del servidor:\n");
-
-    // Se ejecutara hasta que lleguemos a un break
     while (1) {
-        // Recibiremos datos del servidor
-        // parametros fileDescriptor, lugar donde se alamcena, tamaño maximo de datos a recibir
-        ssize_t mensaje_recibido = recv(file_descriptor_servidor, buffer, sizeof(buffer), 0);
-        if (mensaje_recibido <= 0) {
+        printf("%s@%s:%d> ", client_user, server_ip, server_port);
+        fgets(buffer, sizeof(buffer), stdin);
+
+        // Elina el caracter de nueva linea
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        // Terminar el programa si el comando es "exit"
+        if (strcmp(buffer, "exit") == 0) {
+            snprintf(buffer, sizeof(buffer), "%s: exit", client_user);
+            send(file_descriptor_servidor, buffer, strlen(buffer), 0);
             break;
         }
-        printf("%.*s", (int)mensaje_recibido, buffer);
+
+        // Enviar el nombre de usuario y el comando al servidor
+        char message[MAX_BUFFER_SIZE] = { 0 };
+        snprintf(message, sizeof(message), "%s: %s", client_user, buffer);
+
+        // Enviamos el comando al servidor
+        send(file_descriptor_servidor, message, strlen(message), 0);
+
+        // Recibimos la respuesta del servidor
+        // Se ejecutara hasta que lleguemos a un break
+        while (1) {
+            // Recibiremos datos del servidor
+            ssize_t mensaje_recibido = recv(file_descriptor_servidor, buffer, sizeof(buffer) - 1, 0);
+            if (mensaje_recibido <= 0) {
+                break;
+            }
+            buffer[mensaje_recibido] = 0;
+            printf("%s", buffer);
+        }
+        printf("\n");
     }
 
     // Cerrar el socket y terminar el programa

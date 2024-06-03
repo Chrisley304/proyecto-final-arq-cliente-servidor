@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     if (argc >= 2) {
         // -h -> ayuda
         if (strcmp(argv[1], "-h") == 0) {
-            fprintf(stderr, "Servidor SSH Demo -- Proyecto Final Arquitectura Cliente-Servidor\n\nComandos:\n- ./server -h: Muestra mensaje de ayuda.\n./server: Inicializa el servidor con el puerto default 8080 en localhost (127.0.0.1).\n./server <NUMERO_PUERTO>: Inicializa el servidor en localhost (127.0.0.1) utilizando el puerto ingresado.\n\n");
+            fprintf(stderr, "Servidor SSH Demo -- Proyecto Final Arquitectura Cliente-Servidor\n\nComandos:\n%s: Inicializa el servidor con el puerto default 8080 en localhost (127.0.0.1).\n%s <NUMERO_PUERTO>: Inicializa el servidor en localhost (127.0.0.1) utilizando el puerto ingresado.\n%s -h: Muestra mensaje de ayuda.\n\n", argv[0], argv[0], argv[0]);
             exit(EXIT_SUCCESS);
         } else {
             // [int] -> puerto
@@ -89,39 +89,50 @@ int main(int argc, char* argv[])
 
     printf("Servidor en IP 127.0.0.1 (localhost) escuchando en el puerto %d\n", server_port);
 
-    // Aceptamos la conexión entrante
-    // Una vez aceptada la conexion creamos un nuevo socket para la comunicacion con el cliente
-    // En caso de que exista un error mandamos el mensaje
-    if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("Error al aceptar la conexión");
-        exit(EXIT_FAILURE);
+    while (1) {
+        // Aceptamos la conexión entrante
+        // Una vez aceptada la conexión creamos un nuevo socket para la comunicacion con el cliente
+        // En caso de que exista un error mandamos el mensaje
+        if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
+            perror("Error al aceptar la conexión");
+            exit(EXIT_FAILURE);
+        }
+
+        char buffer[MAX_BUFFER_SIZE] = { 0 };
+
+        // Leemos el comando enviado por el cliente y lo almacenamos en el buffer
+        read(new_socket, buffer, sizeof(buffer));
+
+        // Parseamos el comando recibido para separar el usuario y el comando
+        char user[50], command[MAX_BUFFER_SIZE];
+        if (sscanf(buffer, "%49[^:]: %[^\n]", user, command) != 2) {
+            // fprintf(stderr, "Formato del comando no válido.\n");
+            close(new_socket);
+            continue;
+        } else if (strcmp(command, "exit") == 0) {
+            printf("Usuario %s salió\n", user);
+            close(new_socket);
+            continue;
+        } else {
+            printf("Usuario: %s, Comando: %s\n", user, command);
+        }
+
+        // Ejecutamos el comando y obtenemos salida
+        FILE* fp = popen(command, "r");
+        if (fp == NULL) {
+            perror("Error al ejecutar el comando");
+            close(new_socket);
+            continue;
+        }
+
+        // Leemos la salida del comando y la enviamos al cliente
+        while (fgets(buffer, sizeof(buffer) - 1, fp) != NULL) {
+            send(new_socket, buffer, strlen(buffer), 0);
+        }
+
+        pclose(fp);
+        close(new_socket);
     }
 
-    char buffer[MAX_BUFFER_SIZE] = { 0 };
-
-    // Leemos el comando enviado por el cliente y lo almacenamos en el buffer
-    // Posterior imprimimos el comando recibido
-    read(new_socket, buffer, sizeof(buffer));
-    printf("Comando recibido: %s\n", buffer);
-
-    // Ejecutamos el comando y obtenemos salida
-    // con el comando popen se abre un proceso que ejecuta un comando como si estuvieramos en terminal
-    // El primer argumento de popen es el comando en este caso buffer
-    // El segundo argumento es como abrimos el archivo en este caso para lectura
-    // En caso de error mandamos el error
-    FILE* fp = popen(buffer, "r");
-    if (fp == NULL) {
-        perror("Error al ejecutar el comando");
-        exit(EXIT_FAILURE);
-    }
-
-    // Leemos la salida del comando y la enviamos al cliente
-    // mientras el buffer tenga caracteres seguimos enviando la informacion al cliente
-    while (fgets(buffer, sizeof(buffer) - 1, fp) != NULL) {
-        send(new_socket, buffer, strlen(buffer), 0);
-    }
-
-    // Cerrar el socket y terminar el programa
-    close(new_socket);
     return 0;
 }
