@@ -5,13 +5,19 @@
 #include <unistd.h>
 
 #define PORT 8080
-#define MAX_BUFFER_SIZE 2048
+#define MAX_BUFFER_SIZE 20000
 
+/**
+ * @brief Función principal del cliente SSH.
+ *
+ * @param argc Número de argumentos pasados al programa.
+ * @param argv Argumentos pasados al programa. `argv[1]` es el usuario, IP y puerto del servidor SSH.
+ * @return int
+ */
 int main(int argc, char const* argv[])
 {
 
-    // Verificamos que el comando de terminal tenga los argumentos necesarios
-    // ./ejecutable <usuario>@<ip>:<puerto>
+    // Verificamos que el comando de terminal tenga los argumentos necesarios o si se solicita ayuda mediante -h
     if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 'h') {
         printf("Cliente SSH Demo -- Proyecto Final Arquitectura Cliente-Servidor\n\nUso:\n%s <USUARIO>@<IP_DEL_SERVIDOR>:<PUERTO>\n\nDONDE: <USUARIO> es el nombre de usuario del servidor SSH.\n<IP_DEL_SERVIDOR> es la dirección IP del servidor SSH.\n<PUERTO> es el puerto en el que escucha el servidor SSH.\nPara salir del prompt una vez conectado ingrese 'exit'.\n\n", argv[0]);
         exit(EXIT_SUCCESS);
@@ -23,7 +29,7 @@ int main(int argc, char const* argv[])
     char client_user[50], server_ip[50];
     int server_port;
 
-    // Parsear el formato <usuario>@<servidor>:<puerto>
+    // Se parsea el formato <usuario>@<servidor>:<puerto>
     if (sscanf(argv[1], "%49[^@]@%49[^:]:%d", client_user, server_ip, &server_port) != 3) {
         fprintf(stderr, "Formato incorrecto. Uso: %s <usuario>@<IP_DEL_SERVIDOR>:<PUERTO>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -68,6 +74,7 @@ int main(int argc, char const* argv[])
     char response_buffer[MAX_BUFFER_SIZE];
     int mensaje_recibido;
     while (1) {
+        // Imprimimos el prompt del cliente
         printf("%s@%s:%d> ", client_user, server_ip, server_port);
         fgets(buffer, sizeof(buffer), stdin);
 
