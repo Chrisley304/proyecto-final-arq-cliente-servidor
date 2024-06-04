@@ -32,10 +32,25 @@ Posteriormente, se debe ejecutar el servidor con el siguiente comando:
 Finalmente, se debe ejecutar el cliente con el siguiente comando:
 
 ```bash
-./client
+./client <USUARIO>@<IP>:<PUERTO>
 ```
+
+Donde `<USUARIO>` es el nombre de usuario del servidor, `<IP>` es la dirección IP del servidor y `<PUERTO>` es el puerto en el que el servidor está escuchando.
+
+## Comandos soportados
+
+### Servidor
+El servidor soporta los siguientes comandos:
+- `./server -h`: Muestra la ayuda del servidor.
+- `./server <PUERTO>`: Establece el puerto en el que el servidor escuchará conexiones.
+- `./server`: Inicia el servidor en el puerto por default 8080.
+
+### Cliente
+El cliente soporta los siguientes comandos:
+- `./client -h`: Muestra la ayuda del cliente.
+- `./client <USUARIO>@<IP>:<PUERTO>`: Establece la conexión con el servidor.
 
 ## Autores
 
 - Christian Leyva
-- Gerardo 
+- Gerardo Martínez
