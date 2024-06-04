@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #define PORT 8080
-#define MAX_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 2048
 
 int main(int argc, char const* argv[])
 {
@@ -14,7 +14,7 @@ int main(int argc, char const* argv[])
     // ./ejecutable <usuario>@<ip>:<puerto>
     if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 'h') {
         printf("Cliente SSH Demo -- Proyecto Final Arquitectura Cliente-Servidor\n\nUso:\n%s <USUARIO>@<IP_DEL_SERVIDOR>:<PUERTO>\n\nDONDE: <USUARIO> es el nombre de usuario del servidor SSH.\n<IP_DEL_SERVIDOR> es la dirección IP del servidor SSH.\n<PUERTO> es el puerto en el que escucha el servidor SSH.\nPara salir del prompt una vez conectado ingrese 'exit'.\n\n", argv[0]);
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);
     } else if (argc < 2) {
         printf("ERROR: Parametro faltante. Utiliza -h para ver información de uso.\n");
         exit(EXIT_FAILURE);
@@ -64,7 +64,9 @@ int main(int argc, char const* argv[])
     }
 
     // Declaramos nuestra variable para almacenar el comando que venga de consola
-    char buffer[MAX_BUFFER_SIZE] = { 0 };
+    char buffer[MAX_BUFFER_SIZE];
+    char response_buffer[MAX_BUFFER_SIZE];
+    int mensaje_recibido;
     while (1) {
         printf("%s@%s:%d> ", client_user, server_ip, server_port);
         fgets(buffer, sizeof(buffer), stdin);
@@ -84,19 +86,20 @@ int main(int argc, char const* argv[])
         snprintf(message, sizeof(message), "%s: %s", client_user, buffer);
 
         // Enviamos el comando al servidor
-        send(file_descriptor_servidor, message, strlen(message), 0);
+        if (send(file_descriptor_servidor, message, strlen(message), 0) == -1) {
+            perror("send");
+            break;
+        }
 
         // Recibimos la respuesta del servidor
-        // Se ejecutara hasta que lleguemos a un break
-        while (1) {
-            // Recibiremos datos del servidor
-            ssize_t mensaje_recibido = recv(file_descriptor_servidor, buffer, sizeof(buffer) - 1, 0);
-            if (mensaje_recibido <= 0) {
-                break;
-            }
-            buffer[mensaje_recibido] = 0;
-            printf("%s", buffer);
+        // Recibiremos datos del servidor
+        mensaje_recibido = recv(file_descriptor_servidor, response_buffer, sizeof(response_buffer) - 1, 0);
+        if (mensaje_recibido <= 0) {
+            perror("recv");
+            break;
         }
+        response_buffer[mensaje_recibido] = '\0';
+        printf("%s", response_buffer);
         printf("\n");
     }
 
